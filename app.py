@@ -123,4 +123,19 @@ def similarityBasedItem(w, wt):
     print(pz_L)
     return L, pz_L
 
+# kNN user based
+def k_nn(U, user_id, k):
+    neighbors = []
+    result = []
+    for index, u in enumerate(U[user_id]):
+      if index == user_id : continue
+      neighbors.append([index, u])
+    sorted_neighbors = sorted(neighbors, key=lambda neighbors: (neighbors[1], neighbors[0]), reverse=True)
+    print(sorted_neighbors)
+    for i in range(k):
+      if i >= len(sorted_neighbors):
+        break
+      result.append(sorted_neighbors[i][0])
+    
+    return result
 
