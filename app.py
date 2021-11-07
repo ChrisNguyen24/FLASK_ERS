@@ -20,36 +20,40 @@ item_dataset = []
 # def index():
 
 
-@app.route('/test')
+@app.route('/cf-recommender')
 def recommend():
     global user_dataset, item_dataset, w_biparte
-    
+    rs = []
     user_id = request.args.get('user_id')
     ratings = load_data()
+    msg = 'got list recommendation'
 
     w_biparte, wt, uz, pz = biparteMatrix(ratings)
+    # z = graphWeightMatrix(w, wt, uz, pz)  
     # print(w_biparte)
     # print(item_dataset)
     # print(user_dataset)
     try:
         user_index = user_dataset.index(int(user_id))
         # print(user_index)
+        
+        index_result = list_predicts(w_biparte, user_index)
+
+        for i in index_result:
+            rs_item = int(item_dataset[i])
+            rs.append(rs_item)
+            
     except:
         print("Not has user_id")
-    
-    # z = graphWeightMatrix(w, wt, uz, pz)  
-
-    index_result = list_predicts(w_biparte, user_index)
-
-    rs = []
-    for i in index_result:
-        rs_item = int(item_dataset[i])
-        rs.append(rs_item)
-
+        msg = "User has not data rating"
+        
     return jsonify({
-        'data': rs,
-        'user_id' : user_id
-        }), 201
+            'msg': msg,
+            'data': rs,
+            'user_id' : user_id
+            }), 201
+    
+
         
 
 def biparteMatrix(ratings_frame):
