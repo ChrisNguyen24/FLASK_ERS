@@ -3,6 +3,7 @@ from flask_mysqldb import MySQL
 import pandas as pd
 import numpy as np
 import math
+import json
 
 app = Flask(__name__)
 app.config['MYSQL_HOST'] = 'localhost'
@@ -11,9 +12,9 @@ app.config['MYSQL_PASSWORD'] = ''
 app.config['MYSQL_DB'] = 'ecommerce'
 mysql = MySQL(app)
 
-dataset = []
-uu_dataset = {}
-ii_dataset = {}
+w_biparte = []
+user_dataset = []
+item_dataset = []
 
 # @app.route('/')
 # def index():
@@ -25,24 +26,34 @@ ii_dataset = {}
 
 @app.route('/test')
 def recommend():
-    id = request.args.get('user_id')
-    ratings = load_data()
-    print(ratings)
-    # user_ids = list(ratings.user_id.unique()) 
-    # item_ids = list(ratings.module_item_id.unique()) 
-    # numberOfUsers =  len(user_ids)
-    # numberOfItem = len(item_ids)
-
-    w, wt, uz, pz = biparteMatrix(ratings)
-    z = graphWeightMatrix(w, wt, uz, pz)
-    print(w[0][0])
-    print(w)
-    print(z)
+    global user_dataset, item_dataset, w_biparte
     
-    # result = list_predicts(str(id))
-    return jsonify( {
-        'data': id
-} ), 201
+    user_id = request.args.get('user_id')
+    ratings = load_data()
+
+    w_biparte, wt, uz, pz = biparteMatrix(ratings)
+    # print(w_biparte)
+    # print(item_dataset)
+    # print(user_dataset)
+    try:
+        user_index = user_dataset.index(int(user_id))
+        # print(user_index)
+    except:
+        print("Not has user_id")
+    
+    # z = graphWeightMatrix(w, wt, uz, pz)  
+
+    index_result = list_predicts(w_biparte, user_index)
+    item_arr =np.array(item_dataset)
+
+    print(list(item_arr[index_result]))   
+    rs_items = list(item_arr[index_result])
+
+    return jsonify({
+        # 'data': list(item_arr[index_result]),
+        'index' : user_id
+        }), 201
+        
 
 def biparteMatrix(ratings_frame):
 
@@ -50,12 +61,21 @@ def biparteMatrix(ratings_frame):
        convert the ratings frame into userid-items biparte adjacency graph matrix
 
     """
+    global user_dataset, item_dataset, w_biparte
+    
     ratings_frame.rating = ratings_frame.rating.astype('float64')
 
     user_ids = list(ratings_frame.user_id.unique()) 
     item_ids = list(ratings_frame.module_item_id.unique()) 
     numberOfUsers =  len(user_ids)
     numberOfItem = len(item_ids)
+
+    user_dataset = user_ids
+    item_dataset = item_ids
+
+    # print(user_ids)
+    # print('***********')
+    # print(item_ids)
     
     # initialize a numpy matrix of of numberOfUsers * numberOfItem
     w_biparte = np.zeros((numberOfUsers, numberOfItem))
@@ -64,7 +84,9 @@ def biparteMatrix(ratings_frame):
         userId, itemId = name
         user_index = user_ids.index(userId)
         items_index = item_ids.index(itemId)
-
+        # print('--------')
+        # print(user_index, items_index, group[["rating"]].values[0,0])
+        
         w_biparte[user_index, items_index] = group[["rating"]].values[0,0]/5
 
     # initialize uz pz
@@ -128,14 +150,46 @@ def k_nn(U, user_id, k):
     neighbors = []
     result = []
     for index, u in enumerate(U[user_id]):
-      if index == user_id : continue
-      neighbors.append([index, u])
+        if index == user_id : continue
+        neighbors.append([index, u])
     sorted_neighbors = sorted(neighbors, key=lambda neighbors: (neighbors[1], neighbors[0]), reverse=True)
-    print(sorted_neighbors)
+    # print(sorted_neighbors)
     for i in range(k):
-      if i >= len(sorted_neighbors):
-        break
-      result.append(sorted_neighbors[i][0])
+        if i >= len(sorted_neighbors):
+            break
+        result.append(sorted_neighbors[i][0])
     
     return result
 
+def predict(user_id, Knn):
+    result = []
+    for index, rating in enumerate(w_biparte[user_id]):
+        if rating == 0 :
+            avg_rating = user_average_rating(Knn, index)
+            # W[user_id][index] = avg_rating
+            result.append([index, avg_rating])
+
+    return result
+
+def user_average_rating(Knn, item_id): 
+    global w_biparte
+    avg_rating = 0.0
+    size = len(Knn)
+    for u in Knn:
+        avg_rating += float(w_biparte[u][item_id])
+    avg_rating /= size * 1.0
+    return avg_rating
+
+def list_predicts(w, user_id, q = 5, k = 3):
+    result = []
+    wt = w.T
+    L, Ul = similarityBasedUser(w, wt)
+    knn = k_nn(Ul, user_id, k)
+    # fill rating predict for user_id
+    list_predict = predict(user_id, knn)
+
+    sorted_predict = sorted(list_predict, key=lambda list_predict: (list_predict[1]), reverse=True)
+    for i in range(q):
+        if i > q : break
+        result.append(sorted_predict[i][0])
+    return result
