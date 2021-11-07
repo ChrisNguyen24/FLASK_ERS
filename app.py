@@ -18,11 +18,7 @@ item_dataset = []
 
 # @app.route('/')
 # def index():
-#     cur = mysql.connection.cursor()
-#     ratings = load_data()
-    
-#     print(ratings)
-#     return 'check loaded'
+
 
 @app.route('/test')
 def recommend():
@@ -44,14 +40,15 @@ def recommend():
     # z = graphWeightMatrix(w, wt, uz, pz)  
 
     index_result = list_predicts(w_biparte, user_index)
-    item_arr =np.array(item_dataset)
 
-    print(list(item_arr[index_result]))   
-    rs_items = list(item_arr[index_result])
+    rs = []
+    for i in index_result:
+        rs_item = int(item_dataset[i])
+        rs.append(rs_item)
 
     return jsonify({
-        # 'data': list(item_arr[index_result]),
-        'index' : user_id
+        'data': rs,
+        'user_id' : user_id
         }), 201
         
 
@@ -129,8 +126,8 @@ def similarityBasedUser(w, wt):
         L += 2
         tmp = np.dot(w, wt)
         uz_L = np.dot(tmp, uz_L)
-    print(L)
-    print(uz_L)
+    # print(L)
+    # print(uz_L)
     return L, uz_L
 
 # Item based
@@ -141,8 +138,8 @@ def similarityBasedItem(w, wt):
         L += 2
         tmp = np.dot(wt,w)
         pz_L = np.dot(tmp, pz_L)
-    print(L)
-    print(pz_L)
+    # print(L)
+    # print(pz_L)
     return L, pz_L
 
 # kNN user based
@@ -189,7 +186,7 @@ def list_predicts(w, user_id, q = 5, k = 3):
     list_predict = predict(user_id, knn)
 
     sorted_predict = sorted(list_predict, key=lambda list_predict: (list_predict[1]), reverse=True)
-    for i in range(q):
+    for i in range(min(q,len(sorted_predict))):
         if i > q : break
         result.append(sorted_predict[i][0])
     return result
