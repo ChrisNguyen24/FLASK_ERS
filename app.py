@@ -51,7 +51,7 @@ def recommend():
             'msg': msg,
             'data': rs,
             'user_id' : user_id
-            }), 201
+            },200)
     
 
         
