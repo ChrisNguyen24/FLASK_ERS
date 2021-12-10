@@ -102,7 +102,7 @@ def getRating(prefer1, userId, itemId, knumber=20, similarity=sim_pearson):
     toAverage = 0.0
     simSums = 0.0
 
-    knnUsers = topKMatches(prefer1, userId, itemId, k=knumber, sim=sim_pearson)
+    knnUsers = topKMatches(prefer1, userId, itemId, k=knumber, sim=similarity)
 
     averageOfUser = getAverage(prefer1, userId)
     for other in knnUsers:
@@ -118,7 +118,7 @@ def getRating(prefer1, userId, itemId, knumber=20, similarity=sim_pearson):
         return (averageOfUser + toAverage / simSums)
 
 #==================================================================
-def getAllUserRating(fileTrain='u1.base', fileTest='u1.test',k=20):
+def getAllUserRating(fileTrain='u1.base', fileTest='u1.test',k=20, sim = sim_pearson):
     traindata = loadMovieLensTrain(fileTrain)
     testdata = loadMovieLensTest(fileTest)
     # print('size trainset', len(traindata))
@@ -127,7 +127,7 @@ def getAllUserRating(fileTrain='u1.base', fileTest='u1.test',k=20):
     records=[]
     for userid in testdata:
         for item in testdata[userid]:
-            rating = getRating(traindata, userid, item, k, sim_cosine)
+            rating = getRating(traindata, userid, item, k, sim)
             records.append([userid,item,testdata[userid][item],rating])
     #         inAllnum = inAllnum + 1
     # print("-------------Completed!!-----------", inAllnum)
@@ -135,7 +135,8 @@ def getAllUserRating(fileTrain='u1.base', fileTest='u1.test',k=20):
 
 #Evaluation
 def getRMSE(records):
-    return math.sqrt(sum([(rui-pui)*(rui-pui) for u,i,rui,pui in records]))/float(len(records))
+    _sum = sum([(rui-pui)*(rui-pui) for u,i,rui,pui in records])
+    return math.sqrt(_sum/float(len(records)))
 
 def getMAE(records):
     return sum([abs(rui-pui) for u,i,rui,pui in records])/float(len(records))
@@ -205,7 +206,18 @@ if __name__ == "__main__":
     trainfile = 'Data/ml-100k/u1.base'
     testfile = 'Data/ml-100k/u1.test'
 
-    print("\n--------------Dataset from MovieLens... -----------\n")
+    print("\n--------------UserBased - cosine-----------\n")
+    print("%3s%20s%20s%20s" % ('K', "RMSE","MAE","Time(s)"))
+    for k in [ 5, 10, 20, 40, 80, 160]:
+    #     recall, precision = recallAndPrecision(loadMovieLensTrain(trainfile), loadMovieLensTest(testfile), k)
+    #     print(k,': ',recall, precision)
+        starttime = datetime.datetime.now()
+        r=getAllUserRating(trainfile,testfile , k, sim_cosine)
+        rmse=getRMSE(r)
+        mae=getMAE(r)
+        print("%3d%19.3f%19.3f%17ss" % (k, rmse, mae, (datetime.datetime.now() - starttime).seconds))
+    
+    print("\n--------------UserBased - pearson-----------\n")
     print("%3s%20s%20s%20s" % ('K', "RMSE","MAE","Time(s)"))
     for k in [ 5, 10, 20, 40, 80, 160]:
     #     recall, precision = recallAndPrecision(loadMovieLensTrain(trainfile), loadMovieLensTest(testfile), k)
@@ -214,7 +226,7 @@ if __name__ == "__main__":
         r=getAllUserRating(trainfile,testfile , k)
         rmse=getRMSE(r)
         mae=getMAE(r)
-        print("%3d%19.3f%%%19.3f%%%17ss" % (k, rmse * 100, mae * 100, (datetime.datetime.now() - starttime).seconds))
+        print("%3d%19.3f%19.3f%17ss" % (k, rmse, mae, (datetime.datetime.now() - starttime).seconds))
 
 
     #########################
